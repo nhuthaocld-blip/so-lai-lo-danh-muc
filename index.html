@@ -87,6 +87,11 @@ details summary{cursor:pointer;font-weight:600;font-size:.82rem;color:var(--mute
 .lnk{background:none;border:0;color:var(--accent);font:600 .75rem var(--f-body);cursor:pointer;padding:2px 4px;border-radius:4px}
 .lnk:hover{background:var(--soft)}
 tr.editing td{background:var(--soft)}
+.dwrap{position:relative;display:flex}
+.dwrap input:first-child{padding-right:34px}
+.cal{position:absolute;right:2px;top:50%;transform:translateY(-50%);background:none;border:0;color:var(--muted);cursor:pointer;padding:5px;border-radius:4px;display:flex}
+.cal:hover{color:var(--ink);background:var(--soft)}
+.dpick{position:absolute;right:0;bottom:0;width:1px;height:1px;opacity:0;pointer-events:none;border:0;padding:0}
 form.addhold{display:grid;grid-template-columns:repeat(4,minmax(0,1fr)) auto;gap:8px;align-items:end;margin-top:10px;padding:12px;border:1px solid var(--line);border-radius:8px;background:var(--soft)}
 @media (max-width:620px){form.addhold{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .err{color:var(--down);font-size:.78rem;min-height:1.2em;margin:0}
@@ -131,7 +136,7 @@ form.addhold{display:grid;grid-template-columns:repeat(4,minmax(0,1fr)) auto;gap
         <label>Mã<input id="hTicker" list="tickers" required placeholder="VD: HPG" style="text-transform:uppercase"></label>
         <label>Khối lượng<input id="hQty" class="num" type="number" min="1" step="1" required placeholder="1000"></label>
         <label>Giá vốn<input id="hCost" class="num" type="number" min="0" step="any" placeholder="tự lấy"></label>
-        <label>Ngày mua<input id="hDate" type="date" required></label>
+        <label>Ngày mua<span class="dwrap"><input id="hDate" class="num" inputmode="numeric" placeholder="ngày/tháng/năm" required autocomplete="off"><button type="button" class="cal" data-for="hDate" aria-label="Chọn ngày trên lịch"><svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><rect x="2" y="3" width="12" height="11" rx="2" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M2 6.5h12M5.5 1.5v3M10.5 1.5v3" stroke="currentColor" stroke-width="1.4" fill="none" stroke-linecap="round"/></svg></button><input type="date" class="dpick" tabindex="-1" aria-hidden="true"></span></label>
         <div class="row" style="flex-wrap:nowrap"><button class="btn primary sm" type="submit">Thêm</button><button class="btn ghost sm" type="button" id="addHoldCancel">Hủy</button></div>
         <p class="err" id="hErr" style="grid-column:1/-1;margin:0"></p>
       </form>
@@ -145,7 +150,7 @@ form.addhold{display:grid;grid-template-columns:repeat(4,minmax(0,1fr)) auto;gap
     <section class="panel">
       <h2>Thêm lệnh</h2>
       <form class="entry" id="entry" autocomplete="off">
-        <label style="grid-column:span 2">Ngày<input type="date" id="fDate" required></label>
+        <label style="grid-column:span 2">Ngày<span class="dwrap"><input id="fDate" class="num" inputmode="numeric" placeholder="ngày/tháng/năm" required autocomplete="off"><button type="button" class="cal" data-for="fDate" aria-label="Chọn ngày trên lịch"><svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><rect x="2" y="3" width="12" height="11" rx="2" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M2 6.5h12M5.5 1.5v3M10.5 1.5v3" stroke="currentColor" stroke-width="1.4" fill="none" stroke-linecap="round"/></svg></button><input type="date" class="dpick" tabindex="-1" aria-hidden="true"></span></label>
         <label>Mã<input id="fTicker" list="tickers" required placeholder="FPT" style="text-transform:uppercase"></label>
         <label>Lệnh<select id="fSide"><option value="B">Mua</option><option value="S">Bán</option></select></label>
         <label>KL<input id="fQty" class="num" type="number" min="1" step="1" required placeholder="1000"></label>
@@ -168,7 +173,7 @@ form.addhold{display:grid;grid-template-columns:repeat(4,minmax(0,1fr)) auto;gap
             <label style="flex:1">Thuế bán (%)<input id="fTax" class="num" type="number" step="0.01" min="0"></label>
           </div>
           <label>Dán CSV: ngày,mã,mua/bán,khối lượng,giá (nghìn đồng)
-            <textarea id="csv" placeholder="2025-03-10,FPT,mua,500,128.5&#10;2025-06-02,FPT,ban,200,135"></textarea></label>
+            <textarea id="csv" placeholder="10/03/2025,FPT,mua,500,128.5&#10;02/06/2025,FPT,ban,200,135"></textarea></label>
           <div class="row">
             <button class="btn" type="button" id="importCsv">Thêm từ CSV</button>
             <button class="btn ghost" type="button" id="exportCsv">Xuất sổ lệnh ra ô trên</button>
@@ -206,7 +211,6 @@ function rebuild(){
   KNOWN = Object.keys(STOCK).sort();
   document.getElementById("tickers").innerHTML = KNOWN.map(t=>`<option value="${t}">`).join("");
   document.getElementById("asof2").textContent = fmtDate(asOf());
-  const fd = document.getElementById("fDate"); fd.max = asOf(); fd.min = D[0];
 }
 const vnDate = ts => new Date((ts + 7*3600)*1000).toISOString().slice(0,10);
 async function fetchVnd(sym, g){
@@ -521,6 +525,26 @@ document.getElementById("ranges").addEventListener("click", e => {
 });
 function dropSample(){ if (state.sample){ state.trades = []; state.overrides = {}; state.sample = false; } }
 document.getElementById("clearSample").addEventListener("click", () => { dropSample(); persist(); render(); });
+// ---- ô ngày kiểu Việt Nam: ngày/tháng/năm ----
+function parseVN(s){
+  s = String(s||"").trim(); if (!s) return null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  let m = s.match(/^(\d{1,2})[\/\-.](\d{1,2})(?:[\/\-.](\d{2}|\d{4}))?$/); if (!m) return null;
+  let [, d, mo, y] = m; y = y ? (y.length===2 ? "20"+y : y) : asOf().slice(0,4);
+  const iso = `${y}-${mo.padStart(2,"0")}-${d.padStart(2,"0")}`;
+  const dt = new Date(iso+"T00:00:00Z"); return !isNaN(dt) && dt.toISOString().slice(0,10)===iso ? iso : null;
+}
+const getISO = id => parseVN(document.getElementById(id).value) ?? "";
+const setISO = (id, iso) => { document.getElementById(id).value = iso ? fmtDate(iso) : ""; };
+document.querySelectorAll(".dwrap").forEach(w => {
+  const txt = w.querySelector("input:first-child"), dp = w.querySelector(".dpick");
+  txt.addEventListener("blur", () => { const iso = parseVN(txt.value); if (iso) txt.value = fmtDate(iso); });
+  w.querySelector(".cal").addEventListener("click", () => {
+    dp.min = D[0]; dp.max = asOf(); dp.value = parseVN(txt.value) || asOf();
+    try { dp.showPicker(); } catch(e){ txt.focus(); }
+  });
+  dp.addEventListener("change", () => { if (dp.value){ setISO(txt.id, dp.value); txt.dispatchEvent(new Event("change")); } });
+});
 const fDate = document.getElementById("fDate");
 // pull a ticker's history on demand (new code or stale data)
 const tried = new Set();
@@ -531,7 +555,7 @@ async function ensureTicker(t){
 let apTimer = null;
 function autoPrice(){
   const t = document.getElementById("fTicker").value.trim().toUpperCase(); const fp = document.getElementById("fPrice");
-  const show = () => { const i = Math.min(dayIdx(fDate.value),N-1); fp.placeholder = STOCK[t] && STOCK[t][i]!=null ? String(STOCK[t][i]) : "nhập giá"; };
+  const show = () => { const i = Math.min(dayIdx(getISO("fDate") || asOf()),N-1); fp.placeholder = STOCK[t] && STOCK[t][i]!=null ? String(STOCK[t][i]) : "nhập giá"; };
   show(); clearTimeout(apTimer);
   if (t.length >= 3) apTimer = setTimeout(async () => { fp.placeholder = "đang lấy…"; await ensureTicker(t); show(); }, 400);
 }
@@ -543,13 +567,13 @@ document.getElementById("entry").addEventListener("submit", async e => {
   const backup = state.trades, wasSample = state.sample;
   // sửa một lệnh ví dụ = giữ các lệnh ví dụ còn lại làm dữ liệu của bạn
   if (editingTrade){ state.sample = false; state.trades = state.trades.filter(x => x.id !== editingTrade); }
-  const r = addTrade(fDate.value, document.getElementById("fTicker").value, document.getElementById("fSide").value, document.getElementById("fQty").value, document.getElementById("fPrice").value);
+  const r = addTrade(getISO("fDate"), document.getElementById("fTicker").value, document.getElementById("fSide").value, document.getElementById("fQty").value, document.getElementById("fPrice").value);
   if (r) { state.trades = backup; state.sample = wasSample; err.textContent = r; return; }
   endTradeEdit(); persist(); render();
 });
 function addTrade(date, t, side, q, p){
   t = String(t||"").trim().toUpperCase(); q = Number(q); p = p===""||p==null ? NaN : Number(String(p).replace(",","."));
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(date||"")) return "Ngày chưa đúng định dạng.";
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date||"")) return "Ngày chưa đúng, hãy nhập theo ngày/tháng/năm, ví dụ 9/10/2026.";
   if (date < D[0] || date > asOf()) return `Ngày cần nằm trong ${fmtDate(D[0])} – ${fmtDate(asOf())}.`;
   if (!/^[A-Z0-9]{3,10}$/.test(t)) return "Mã cổ phiếu chưa hợp lệ.";
   if (!(q>0)) return "Khối lượng phải lớn hơn 0.";
@@ -574,7 +598,7 @@ document.getElementById("tradeBody").addEventListener("click", e => {
   const b = e.target.closest("[data-tedit]"); if (!b) return;
   const t = state.trades.find(x => x.id === b.dataset.tedit); if (!t) return;
   editingTrade = t.id;
-  fDate.value = t.date; document.getElementById("fTicker").value = t.t; document.getElementById("fSide").value = t.side;
+  setISO("fDate", t.date); document.getElementById("fTicker").value = t.t; document.getElementById("fSide").value = t.side;
   document.getElementById("fQty").value = t.q; document.getElementById("fPrice").value = t.p;
   document.getElementById("fSubmit").textContent = `Lưu lệnh ${t.t} đã sửa`; document.getElementById("fCancel").hidden = false;
   document.getElementById("fErr").textContent = ""; render();
@@ -585,12 +609,12 @@ document.getElementById("tradeBody").addEventListener("click", e => {
 const addHold = document.getElementById("addHold");
 document.getElementById("addHoldBtn").addEventListener("click", () => {
   addHold.hidden = !addHold.hidden;
-  if (!addHold.hidden){ const hd = document.getElementById("hDate"); hd.value = hd.value || asOf(); hd.max = asOf(); hd.min = D[0]; document.getElementById("hTicker").focus(); }
+  if (!addHold.hidden){ if (!getISO("hDate")) setISO("hDate", asOf()); document.getElementById("hTicker").focus(); }
 });
 document.getElementById("addHoldCancel").addEventListener("click", () => { addHold.hidden = true; document.getElementById("hErr").textContent = ""; });
 let hpTimer = null;
 function holdAutoPrice(){
-  const t = document.getElementById("hTicker").value.trim().toUpperCase(), hc = document.getElementById("hCost"), hd = document.getElementById("hDate").value || asOf();
+  const t = document.getElementById("hTicker").value.trim().toUpperCase(), hc = document.getElementById("hCost"), hd = getISO("hDate") || asOf();
   const show = () => { const i = Math.min(dayIdx(hd),N-1); hc.placeholder = STOCK[t] && STOCK[t][i]!=null ? String(STOCK[t][i]) : "nhập giá"; };
   show(); clearTimeout(hpTimer);
   if (t.length >= 3) hpTimer = setTimeout(async () => { hc.placeholder = "đang lấy…"; await ensureTicker(t); show(); }, 400);
@@ -605,7 +629,7 @@ addHold.addEventListener("submit", async e => {
   const cost = document.getElementById("hCost").value;
   // giá vốn nhập vào đã gồm phí mua → quy về giá khớp
   const p = cost === "" ? "" : Number(cost) / (1 + state.fee/100);
-  const r = addTrade(document.getElementById("hDate").value, t, "B", document.getElementById("hQty").value, p);
+  const r = addTrade(getISO("hDate"), t, "B", document.getElementById("hQty").value, p);
   if (r) { err.textContent = r; return; }
   ["hTicker","hQty","hCost"].forEach(id => document.getElementById(id).value = "");
   addHold.hidden = true; persist(); render();
@@ -652,7 +676,7 @@ document.getElementById("importCsv").addEventListener("click", async () => {
   if (syms.length){ msg.textContent = `Đang lấy giá ${syms.join(", ")}…`; await pool(syms.map(t => () => ensureTicker(t).then(()=>true))); }
   lines.forEach((l,n) => {
     const c = l.split(/[,;\t]/).map(x=>x.trim()); if (n===0 && /ng[aà]y|date/i.test(c[0])) return;
-    let d = c[0]; const m = d.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/); if (m) d = `${m[3]}-${m[2].padStart(2,"0")}-${m[1].padStart(2,"0")}`;
+    const d = parseVN(c[0]) || "";
     const side = /^(b[aá]n|s|sell)/i.test(c[2]||"") ? "S" : "B";
     const r = addTrade(d, c[1], side, c[3], c[4]); r ? bad.push(`dòng ${n+1}: ${r}`) : ok++;
   });
@@ -661,7 +685,7 @@ document.getElementById("importCsv").addEventListener("click", async () => {
   if (ok){ persist(); render(); }
 });
 document.getElementById("exportCsv").addEventListener("click", () => {
-  document.getElementById("csv").value = "ngay,ma,lenh,khoi_luong,gia\n" + [...state.trades].sort((a,b)=>a.date<b.date?-1:1).map(t=>`${t.date},${t.t},${t.side==="B"?"mua":"ban"},${t.q},${t.p}`).join("\n");
+  document.getElementById("csv").value = "ngay,ma,lenh,khoi_luong,gia\n" + [...state.trades].sort((a,b)=>a.date<b.date?-1:1).map(t=>`${fmtDate(t.date)},${t.t},${t.side==="B"?"mua":"ban"},${t.q},${t.p}`).join("\n");
 });
 document.getElementById("copyCsv").addEventListener("click", async () => {
   const ta = document.getElementById("csv"), msg = document.getElementById("csvMsg");
@@ -681,7 +705,7 @@ async function boot(){
   catch(e){ setAsOf("Không tải được dữ liệu nền", true); }
   if (!RAW.VNINDEX){ try { await fetchVnd("VNINDEX","index"); } catch(e){} }
   if (!RAW.VNINDEX){ document.getElementById("kpis").innerHTML = `<div class="kpi"><span class="eyebrow">Chưa tải được dữ liệu</span><span class="s">Kiểm tra kết nối mạng rồi tải lại trang.</span></div>`; return; }
-  rebuild(); fDate.value = asOf();
+  rebuild(); setISO("fDate", asOf());
   setAsOf("Dữ liệu đến " + fmtDate(asOf()));
   const local = loadLocal();
   if (local) state = {...state, ...local};
