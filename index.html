@@ -82,7 +82,13 @@ textarea{font-family:var(--f-num);font-size:.78rem;min-height:90px;resize:vertic
 .note{font-size:.75rem;color:var(--muted);margin:0}
 .banner{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;padding:10px 14px;border-radius:10px;border:1px dashed color-mix(in srgb,var(--ref) 60%,var(--line));background:color-mix(in srgb,var(--ref) 8%,var(--panel));font-size:.82rem}
 details summary{cursor:pointer;font-weight:600;font-size:.82rem;color:var(--muted)}
-.ovr{width:84px;padding:2px 6px;font-size:.78rem}
+.ed{width:84px;padding:3px 6px;font-size:.8rem;text-align:right}
+.tag{font:600 .62rem var(--f-body);text-transform:uppercase;letter-spacing:.05em;color:var(--ref);margin-left:4px}
+.lnk{background:none;border:0;color:var(--accent);font:600 .75rem var(--f-body);cursor:pointer;padding:2px 4px;border-radius:4px}
+.lnk:hover{background:var(--soft)}
+tr.editing td{background:var(--soft)}
+form.addhold{display:grid;grid-template-columns:repeat(4,minmax(0,1fr)) auto;gap:8px;align-items:end;margin-top:10px;padding:12px;border:1px solid var(--line);border-radius:8px;background:var(--soft)}
+@media (max-width:620px){form.addhold{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .err{color:var(--down);font-size:.78rem;min-height:1.2em;margin:0}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
@@ -120,9 +126,18 @@ details summary{cursor:pointer;font-weight:600;font-size:.82rem;color:var(--mute
 
   <div class="grid2">
     <section class="panel">
-      <div class="row" style="justify-content:space-between"><h2>Danh mục đang nắm</h2><span class="note">Giá: nghìn đồng · giá vốn bình quân gia quyền</span></div>
+      <div class="row" style="justify-content:space-between"><h2>Danh mục đang nắm</h2><button class="btn sm" type="button" id="addHoldBtn">+ Thêm mã</button></div>
+      <form class="addhold" id="addHold" autocomplete="off" hidden>
+        <label>Mã<input id="hTicker" list="tickers" required placeholder="VD: HPG" style="text-transform:uppercase"></label>
+        <label>Khối lượng<input id="hQty" class="num" type="number" min="1" step="1" required placeholder="1000"></label>
+        <label>Giá vốn<input id="hCost" class="num" type="number" min="0" step="0.01" placeholder="tự lấy"></label>
+        <label>Ngày mua<input id="hDate" type="date" required></label>
+        <div class="row" style="flex-wrap:nowrap"><button class="btn primary sm" type="submit">Thêm</button><button class="btn ghost sm" type="button" id="addHoldCancel">Hủy</button></div>
+        <p class="err" id="hErr" style="grid-column:1/-1;margin:0"></p>
+      </form>
+      <p class="note" style="margin-top:6px">Giá: nghìn đồng · giá vốn bình quân đã gồm phí mua · bấm Sửa để chỉnh khối lượng, giá vốn hoặc giá thị trường</p>
       <div class="tbl" style="margin-top:8px">
-        <table><thead><tr><th>Mã</th><th>KL</th><th>Giá vốn</th><th>Giá TT</th><th>Giá trị</th><th>Lãi/lỗ</th><th>%</th></tr></thead><tbody id="holdBody"></tbody></table>
+        <table><thead><tr><th>Mã</th><th>KL</th><th>Giá vốn</th><th>Giá TT</th><th>Giá trị</th><th>Lãi/lỗ</th><th>%</th><th></th></tr></thead><tbody id="holdBody"></tbody></table>
       </div>
       <p class="note" id="holdNote" style="margin-top:8px"></p>
     </section>
@@ -135,14 +150,14 @@ details summary{cursor:pointer;font-weight:600;font-size:.82rem;color:var(--mute
         <label>Lệnh<select id="fSide"><option value="B">Mua</option><option value="S">Bán</option></select></label>
         <label>KL<input id="fQty" class="num" type="number" min="1" step="1" required placeholder="1000"></label>
         <label>Giá<input id="fPrice" class="num" type="number" min="0" step="0.01" placeholder="tự lấy"></label>
-        <button class="btn primary" type="submit" style="grid-column:1/-1">Ghi lệnh</button>
+        <div class="row" style="grid-column:1/-1"><button class="btn primary" type="submit" id="fSubmit" style="flex:1">Ghi lệnh</button><button class="btn ghost" type="button" id="fCancel" hidden>Hủy sửa</button></div>
       </form>
       <p class="err" id="fErr"></p>
       <datalist id="tickers"></datalist>
 
       <div class="row" style="justify-content:space-between;margin-top:6px"><h2>Sổ lệnh</h2><span class="note" id="tradeCount"></span></div>
       <div class="tbl" style="margin-top:6px;max-height:340px;overflow-y:auto">
-        <table><thead><tr><th>Ngày</th><th>Mã</th><th>Lệnh</th><th>KL</th><th>Giá</th><th></th></tr></thead><tbody id="tradeBody"></tbody></table>
+        <table><thead><tr><th>Ngày</th><th>Mã</th><th>Lệnh</th><th>KL</th><th>Giá</th><th></th><th></th></tr></thead><tbody id="tradeBody"></tbody></table>
       </div>
 
       <details style="margin-top:12px">
@@ -264,6 +279,7 @@ function dayIdx(date){ let lo=0, hi=N; while(lo<hi){ const m=(lo+hi)>>1; if (D[m
 let state = {trades:[], fee:0.15, tax:0.1, overrides:{}, sample:false};
 let enabled = new Set(["PORT", ...SERIES.filter(s=>s.on).map(s=>s.k)]);
 let range = "ALL";
+let editingHold = null, editingTrade = null;
 const LS_KEY = "slldm-state-v1", LS_UI = "slldm-ui-v1";
 
 function sampleTrades(){
@@ -353,7 +369,7 @@ function compute(){
     const px = ov!=null && ov>0 ? ov : priceAt(t,L,p.last);
     const val = p.q*px*1000, avg = p.cost/p.q/1000;
     mvNow += val;
-    rows.push({t, q:p.q, avg, px, val, pl: val - p.cost, plp: val/p.cost - 1, src: ov?"tự nhập": hasData?"dữ liệu":"giá lệnh cuối"});
+    rows.push({t, q:p.q, avg, px, val, pl: val - p.cost, plp: val/p.cost - 1, src: ov?"tự nhập": hasData?"dữ liệu":"giá lệnh cuối", dataPx: hasData ? STOCK[t][L] : null});
   }
   rows.sort((a,b)=>b.val-a.val);
   // if overrides change today's value, adjust last TWR point proportionally
@@ -372,7 +388,7 @@ function rangeStart(portStart){
   if (range==="ALL") s = portStart ?? Math.max(0,N-250);
   else if (range==="YTD") s = dayIdx(last.slice(0,4)+"-01-01");
   else { d.setMonth(d.getMonth()-back); s = dayIdx(d.toISOString().slice(0,10)); }
-  if (portStart!=null && range!=="ALL") s = Math.max(s, portStart) === portStart && s < portStart ? portStart : s;
+  if (portStart!=null && s < portStart) s = portStart;
   return Math.min(Math.max(0,s), N-2);
 }
 function rebase(arr, s){ const b = arr[s]; return arr.slice(s).map(v => v==null||b==null? null : v/b - 1); }
@@ -394,7 +410,7 @@ function render(){
   const labels = D.slice(s);
   // portfolio within range, rebased
   let port = null;
-  if (R){ const base = R.twr[s]; port = R.twr.slice(s).map((v,j)=> v==null? null : (s+j===R.start && base==null ? 0 : (1+v)/(1+(base??0)) - 1)); if (R.start>s) port = port.map((v,j)=> s+j<R.start? null : v); }
+  if (R){ const base = s===R.start ? 0 : (R.twr[s] ?? 0); port = R.twr.slice(s).map(v => v==null ? null : (1+v)/(1+base) - 1); }
   const datasets = [];
   const statRows = [];
   if (port && enabled.has("PORT")){
@@ -417,7 +433,7 @@ function render(){
     const diff = pStats && pStats.ret!=null && !r.me && r.st.ret!=null ? pStats.ret - r.st.ret : null;
     return `<tr><td class="tk" style="font-weight:${r.me?700:500}"><span class="sw" style="background:${r.c}"></span>${r.label}</td>
       <td class="${cls(r.st.ret)}">${pct(r.st.ret)}</td>
-      <td class="${diff==null?'':cls(diff)}">${r.me?"—":diff==null?"—":(diff>0?"Bạn hơn ":"Bạn kém ")+nf2.format(Math.abs(diff*100))+" đ%"}</td>
+      <td class="${diff==null?'':cls(diff)}">${r.me?"—":diff==null?"—":(diff>0?"Bạn hơn ":"Bạn kém ")+nf2.format(Math.abs(diff*100))+" điểm %"}</td>
       <td class="down">${pct(r.st.mdd)}</td><td>${r.st.vol==null?"—":nf2.format(r.st.vol*100)+"%"}</td></tr>`;
   }).join("") || `<tr><td colspan="5" style="text-align:left;font-family:var(--f-body);color:var(--muted)">Bật ít nhất một đường ở trên để xem thống kê.</td></tr>`;
 
@@ -433,29 +449,39 @@ function render(){
       ["Vốn đã bỏ vào", money(R.invested), `Từ ${fmtDate(D[R.start])}`],
       ["Tổng lãi/lỗ", `<span class="${cls(total)}">${total>0?"+":""}${money(total)}</span>`, `Đã chốt ${money(R.realized)} · chưa chốt ${money(R.unreal)}`],
       ["Hiệu suất (TWR)", `<span class="${cls(tw)}">${pct(tw)}</span>`, `Phí + thuế đã trả ${money(R.feesPaid)}`],
-      ["So với VN-Index", `<span class="${cls(tw-vnRet)}">${tw-vnRet>0?"+":""}${nf2.format((tw-vnRet)*100)} đ%</span>`, `VN-Index cùng kỳ ${pct(vnRet)}`],
+      ["So với VN-Index", `<span class="${cls(tw-vnRet)}">${tw-vnRet>0?"+":""}${nf2.format((tw-vnRet)*100)} điểm %</span>`, `VN-Index cùng kỳ ${pct(vnRet)}`],
     ].map(([a,b,c])=>`<div class="kpi"><span class="eyebrow">${a}</span><span class="v">${b}</span><span class="s">${c}</span></div>`).join("");
   }
 
   // holdings
   const hb = document.getElementById("holdBody");
-  hb.innerHTML = R && R.rows.length ? R.rows.map(r => `<tr><td class="tk">${r.t}</td><td>${nf0.format(r.q)}</td><td>${nf2.format(r.avg)}</td>
-    <td><input class="ovr num" type="number" step="0.05" min="0" id="ovr-${r.t}" data-t="${r.t}" value="${r.px}" title="Giá ${r.src}; sửa để định giá theo giá bạn muốn"></td>
-    <td>${money(r.val)}</td><td class="${cls(r.pl)}">${r.pl>0?"+":""}${money(r.pl)}</td><td class="${cls(r.plp)}">${pct(r.plp)}</td></tr>`).join("")
-    : `<tr><td colspan="7" style="text-align:left;font-family:var(--f-body);color:var(--muted)">Chưa nắm giữ mã nào.</td></tr>`;
+  const keep = editingHold && document.getElementById("eQty") ? ["eQty","eCost","ePx"].map(id => document.getElementById(id).value).concat(document.getElementById("eErr").innerHTML) : null;
+  hb.innerHTML = R && R.rows.length ? R.rows.map(r => editingHold===r.t ? `<tr class="editing"><td class="tk">${r.t}</td>
+    <td><input class="ed num" id="eQty" type="number" min="1" step="1" value="${r.q}" aria-label="Khối lượng ${r.t}"></td>
+    <td><input class="ed num" id="eCost" type="number" min="0" step="0.01" value="${Math.round(r.avg*100)/100}" aria-label="Giá vốn ${r.t}"></td>
+    <td><input class="ed num" id="ePx" type="number" min="0" step="0.05" value="${state.overrides[r.t] ?? ""}" placeholder="${r.dataPx ?? "nhập giá"}" aria-label="Giá thị trường ${r.t}" title="Để trống để dùng giá tự động"></td>
+    <td colspan="3" style="text-align:left"><button class="btn primary sm" type="button" data-save="${r.t}">Lưu</button> <button class="btn ghost sm" type="button" data-cancel="1">Hủy</button></td><td></td></tr>
+    <tr class="editing"><td colspan="8" style="text-align:left;font-family:var(--f-body);white-space:normal"><p class="err" id="eErr" style="margin:0"></p><span class="note">Ô giá thị trường để trống = dùng giá tự động (${r.dataPx!=null ? nf2.format(r.dataPx) : "chưa có"}).</span></td></tr>`
+    : `<tr><td class="tk">${r.t}</td><td>${nf0.format(r.q)}</td><td>${nf2.format(r.avg)}</td>
+    <td>${nf2.format(r.px)}${r.src==="tự nhập"?'<span class="tag">tự nhập</span>':r.src==="giá lệnh cuối"?'<span class="tag">giá lệnh</span>':""}</td>
+    <td>${money(r.val)}</td><td class="${cls(r.pl)}">${r.pl>0?"+":""}${money(r.pl)}</td><td class="${cls(r.plp)}">${pct(r.plp)}</td>
+    <td><button class="lnk" type="button" data-edit="${r.t}">Sửa</button></td></tr>`).join("")
+    : `<tr><td colspan="8" style="text-align:left;font-family:var(--f-body);color:var(--muted)">Chưa nắm giữ mã nào. Bấm “+ Thêm mã” để thêm cổ phiếu bạn đang có.</td></tr>`;
   const notes = [];
-  if (R){ const miss = R.rows.filter(r=>r.src==="giá lệnh cuối").map(r=>r.t); if (miss.length) notes.push(`${miss.join(", ")} chưa có dữ liệu giá: đang định giá theo giá lệnh cuối, hãy nhập giá thị trường ở cột Giá TT.`);
+  if (R){ const miss = R.rows.filter(r=>r.src==="giá lệnh cuối").map(r=>r.t); if (miss.length) notes.push(`${miss.join(", ")} chưa có dữ liệu giá: đang định giá theo giá lệnh cuối, bấm Sửa để nhập giá thị trường.`);
     if (Object.keys(state.overrides).length) notes.push(`Có mã đang dùng giá tự nhập. <button class="btn sm ghost" type="button" id="resetOvr">Dùng lại giá dữ liệu</button>`);
     notes.push(...R.warnings); }
   document.getElementById("holdNote").innerHTML = notes.join("<br>");
+  if (keep && document.getElementById("eQty")){ ["eQty","eCost","ePx"].forEach((id,i) => document.getElementById(id).value = keep[i]); document.getElementById("eErr").innerHTML = keep[3]; }
 
   // trades
   const tr = [...state.trades].sort((a,b)=> a.date<b.date?1:a.date>b.date?-1:0);
   document.getElementById("tradeCount").textContent = tr.length ? `${tr.length} lệnh${state.sample?" (ví dụ)":""}` : "";
-  document.getElementById("tradeBody").innerHTML = tr.length ? tr.map(t=>`<tr><td>${fmtDate(t.date)}</td><td class="tk">${t.t}</td>
+  document.getElementById("tradeBody").innerHTML = tr.length ? tr.map(t=>`<tr${t.id===editingTrade?' class="editing"':""}><td>${fmtDate(t.date)}</td><td class="tk">${t.t}</td>
     <td class="${t.side==="B"?"side-b":"side-s"}">${t.side==="B"?"Mua":"Bán"}</td><td>${nf0.format(t.q)}</td><td>${nf2.format(t.p)}</td>
+    <td><button class="lnk" type="button" data-tedit="${t.id}">Sửa</button></td>
     <td><button class="x" type="button" data-del="${t.id}" aria-label="Xóa lệnh ${t.t} ${fmtDate(t.date)}">×</button></td></tr>`).join("")
-    : `<tr><td colspan="6" style="text-align:left;font-family:var(--f-body);color:var(--muted)">Sổ lệnh trống.</td></tr>`;
+    : `<tr><td colspan="7" style="text-align:left;font-family:var(--f-body);color:var(--muted)">Sổ lệnh trống.</td></tr>`;
   document.getElementById("fFee").value = state.fee; document.getElementById("fTax").value = state.tax;
 }
 
@@ -514,9 +540,12 @@ document.getElementById("entry").addEventListener("submit", async e => {
   e.preventDefault();
   const err = document.getElementById("fErr"); err.textContent = "";
   await ensureTicker(document.getElementById("fTicker").value.trim().toUpperCase());
+  const backup = state.trades, wasSample = state.sample;
+  // sửa một lệnh ví dụ = giữ các lệnh ví dụ còn lại làm dữ liệu của bạn
+  if (editingTrade){ state.sample = false; state.trades = state.trades.filter(x => x.id !== editingTrade); }
   const r = addTrade(fDate.value, document.getElementById("fTicker").value, document.getElementById("fSide").value, document.getElementById("fQty").value, document.getElementById("fPrice").value);
-  if (r) { err.textContent = r; return; }
-  document.getElementById("fQty").value = ""; document.getElementById("fPrice").value = ""; persist(); render();
+  if (r) { state.trades = backup; state.sample = wasSample; err.textContent = r; return; }
+  endTradeEdit(); persist(); render();
 });
 function addTrade(date, t, side, q, p){
   t = String(t||"").trim().toUpperCase(); q = Number(q); p = p===""||p==null ? NaN : Number(String(p).replace(",","."));
@@ -534,10 +563,85 @@ document.getElementById("tradeBody").addEventListener("click", e => {
   const b = e.target.closest("[data-del]"); if (!b) return;
   state.trades = state.trades.filter(t => t.id !== b.dataset.del); persist(); render();
 });
-document.getElementById("holdBody").addEventListener("change", e => {
-  const i = e.target.closest(".ovr"); if (!i) return; const v = Number(i.value);
-  if (v>0) state.overrides[i.dataset.t] = v; else delete state.overrides[i.dataset.t]; persist(); render();
+// ---- sửa lệnh trong sổ lệnh ----
+function endTradeEdit(){
+  editingTrade = null;
+  document.getElementById("fQty").value = ""; document.getElementById("fPrice").value = "";
+  document.getElementById("fSubmit").textContent = "Ghi lệnh"; document.getElementById("fCancel").hidden = true;
+}
+document.getElementById("fCancel").addEventListener("click", () => { endTradeEdit(); document.getElementById("fErr").textContent = ""; render(); });
+document.getElementById("tradeBody").addEventListener("click", e => {
+  const b = e.target.closest("[data-tedit]"); if (!b) return;
+  const t = state.trades.find(x => x.id === b.dataset.tedit); if (!t) return;
+  editingTrade = t.id;
+  fDate.value = t.date; document.getElementById("fTicker").value = t.t; document.getElementById("fSide").value = t.side;
+  document.getElementById("fQty").value = t.q; document.getElementById("fPrice").value = t.p;
+  document.getElementById("fSubmit").textContent = `Lưu lệnh ${t.t} đã sửa`; document.getElementById("fCancel").hidden = false;
+  document.getElementById("fErr").textContent = ""; render();
+  document.getElementById("entry").scrollIntoView({behavior:"smooth", block:"center"}); document.getElementById("fQty").focus({preventScroll:true});
 });
+
+// ---- thêm mã đang nắm ----
+const addHold = document.getElementById("addHold");
+document.getElementById("addHoldBtn").addEventListener("click", () => {
+  addHold.hidden = !addHold.hidden;
+  if (!addHold.hidden){ const hd = document.getElementById("hDate"); hd.value = hd.value || asOf(); hd.max = asOf(); hd.min = D[0]; document.getElementById("hTicker").focus(); }
+});
+document.getElementById("addHoldCancel").addEventListener("click", () => { addHold.hidden = true; document.getElementById("hErr").textContent = ""; });
+let hpTimer = null;
+function holdAutoPrice(){
+  const t = document.getElementById("hTicker").value.trim().toUpperCase(), hc = document.getElementById("hCost"), hd = document.getElementById("hDate").value || asOf();
+  const show = () => { const i = Math.min(dayIdx(hd),N-1); hc.placeholder = STOCK[t] && STOCK[t][i]!=null ? String(STOCK[t][i]) : "nhập giá"; };
+  show(); clearTimeout(hpTimer);
+  if (t.length >= 3) hpTimer = setTimeout(async () => { hc.placeholder = "đang lấy…"; await ensureTicker(t); show(); }, 400);
+}
+document.getElementById("hTicker").addEventListener("input", holdAutoPrice);
+document.getElementById("hDate").addEventListener("change", holdAutoPrice);
+addHold.addEventListener("submit", async e => {
+  e.preventDefault();
+  const err = document.getElementById("hErr"); err.textContent = "";
+  const t = document.getElementById("hTicker").value.trim().toUpperCase();
+  await ensureTicker(t);
+  const cost = document.getElementById("hCost").value;
+  // giá vốn nhập vào đã gồm phí mua → quy về giá khớp
+  const p = cost === "" ? "" : Number(cost) / (1 + state.fee/100);
+  const r = addTrade(document.getElementById("hDate").value, t, "B", document.getElementById("hQty").value, p);
+  if (r) { err.textContent = r; return; }
+  ["hTicker","hQty","hCost"].forEach(id => document.getElementById(id).value = "");
+  addHold.hidden = true; persist(); render();
+});
+
+// ---- sửa dòng trong danh mục: khối lượng, giá vốn, giá thị trường ----
+const newId = () => crypto.randomUUID ? crypto.randomUUID() : String(Date.now()+Math.random());
+document.getElementById("holdBody").addEventListener("click", e => {
+  const ed = e.target.closest("[data-edit]"), sv = e.target.closest("[data-save]"), cc = e.target.closest("[data-cancel]"), mg = e.target.closest("[data-merge]");
+  if (ed){ editingHold = ed.dataset.edit; render(); document.getElementById("eQty")?.focus(); return; }
+  if (cc){ editingHold = null; render(); return; }
+  if (!sv && !mg) return;
+  const t = sv ? sv.dataset.save : mg.dataset.merge, err = document.getElementById("eErr");
+  const q = Number(document.getElementById("eQty").value), cost = Number(document.getElementById("eCost").value), pxRaw = document.getElementById("ePx").value.trim();
+  if (!(q>0)) { err.textContent = "Khối lượng phải lớn hơn 0."; return; }
+  if (!(cost>0)) { err.textContent = "Giá vốn phải lớn hơn 0."; return; }
+  if (pxRaw !== "" && !(Number(pxRaw)>0)) { err.textContent = "Giá thị trường phải lớn hơn 0, hoặc để trống."; return; }
+  const R = compute(); const row = R && R.rows.find(r => r.t === t); if (!row) { editingHold = null; render(); return; }
+  if (q !== row.q || Math.abs(cost - row.avg) >= 0.005){
+    const mine = state.trades.filter(x => x.t === t);
+    const p = Math.round(cost / (1 + state.fee/100) * 10000) / 10000;
+    if (mine.length === 1 && mine[0].side === "B"){ mine[0].q = q; mine[0].p = p; }
+    else if (mg){
+      const first = mine.map(x => x.date).sort()[0];
+      state.trades = state.trades.filter(x => x.t !== t).concat({id:newId(), date:first, t, side:"B", q, p});
+    } else {
+      err.innerHTML = `${t} có ${mine.length} lệnh mua/bán nên không đổi thẳng được. Sửa từng lệnh trong Sổ lệnh, hoặc <button class="btn sm" type="button" data-merge="${t}">Gộp thành 1 lệnh mua ${nf0.format(q)} cp, giá vốn ${nf2.format(cost)}</button> (bỏ lãi/lỗ đã chốt của ${t}).`;
+      return;
+    }
+  }
+  let px = pxRaw === "" ? null : Number(pxRaw);
+  if (px != null && px > 5000) px = px/1000;
+  if (px == null) delete state.overrides[t]; else state.overrides[t] = px;
+  state.sample = false; editingHold = null; persist(); render();
+});
+
 document.getElementById("holdNote").addEventListener("click", e => { if (e.target.id==="resetOvr"){ state.overrides = {}; persist(); render(); } });
 ["fFee","fTax"].forEach(id => document.getElementById(id).addEventListener("change", e => {
   const v = Number(e.target.value); if (v>=0 && v<10){ state[id==="fFee"?"fee":"tax"] = v; persist(); render(); } }));
