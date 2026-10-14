@@ -1,0 +1,589 @@
+<title>Sổ Lãi Lỗ Danh Mục</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<style>
+/* Layout: bảng điện tử thu gọn — dải KPI, biểu đồ đường lớn có chip bật/tắt, rồi danh mục + sổ lệnh hai cột */
+:root{
+  --bg:#f3f5f8; --panel:#ffffff; --ink:#152033; --muted:#5b6880; --line:#dde3ec; --soft:#eef2f7;
+  --accent:#1d4ed8; --accent-ink:#ffffff;
+  --up:#0f9d58; --down:#d93025; --ref:#b7791f; --ceil:#9333ea; --floor:#0891b2;
+  --grid:rgba(21,32,51,.08);
+  --f-display:"Be Vietnam Pro",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-body:"Be Vietnam Pro",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-num:"JetBrains Mono",ui-monospace,"Cascadia Mono",Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0b1220; --panel:#111a2c; --ink:#e6ecf5; --muted:#93a1b8; --line:#22304a; --soft:#17223a;
+  --accent:#6ea0ff; --accent-ink:#0b1220; --up:#34d27b; --down:#ff6b5e; --ref:#f2b84b; --ceil:#c084fc; --floor:#22d3ee;
+  --grid:rgba(230,236,245,.08); color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0b1220; --panel:#111a2c; --ink:#e6ecf5; --muted:#93a1b8; --line:#22304a; --soft:#17223a;
+  --accent:#6ea0ff; --accent-ink:#0b1220; --up:#34d27b; --down:#ff6b5e; --ref:#f2b84b; --ceil:#c084fc; --floor:#22d3ee;
+  --grid:rgba(230,236,245,.08); color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:14px;line-height:1.5}
+.wrap{max-width:1240px;margin:0 auto;padding-inline:16px;padding-block:20px 48px;display:grid;gap:16px}
+header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px}
+h1{font-family:var(--f-display);font-weight:800;font-size:1.6rem;letter-spacing:-.02em;margin:0;text-wrap:balance}
+h1 small{display:block;font-size:.78rem;font-weight:500;color:var(--muted);letter-spacing:0}
+h2{font-family:var(--f-display);font-size:1rem;font-weight:700;margin:0}
+.eyebrow{font-size:.7rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600}
+.num{font-family:var(--f-num);font-variant-numeric:tabular-nums}
+.up{color:var(--up)} .down{color:var(--down)} .flat{color:var(--ref)}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;min-width:0}
+.status{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:.8rem;color:var(--muted)}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;background:var(--soft);border:1px solid var(--line);font-size:.75rem;color:var(--muted);white-space:nowrap}
+.pill.warn{color:var(--ref);border-color:color-mix(in srgb,var(--ref) 40%,var(--line))}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.kpi{background:var(--panel);padding:14px 16px;display:grid;gap:2px;min-width:0}
+.kpi .v{font-family:var(--f-num);font-size:1.3rem;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kpi .s{font-size:.75rem;color:var(--muted)}
+.chart-head{display:flex;flex-wrap:wrap;gap:10px;justify-content:space-between;align-items:center;margin-bottom:10px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{border:0;background:transparent;color:var(--muted);padding:5px 10px;font:600 .75rem var(--f-body);cursor:pointer}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.chipgroup{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.chipgroup .eyebrow{margin-right:2px;min-width:64px}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--muted);font:500 .78rem var(--f-body);cursor:pointer;transition:background .12s,color .12s}
+.chip .dot{width:10px;height:3px;border-radius:2px;background:var(--c);opacity:.35}
+.chip[aria-pressed="true"]{color:var(--ink);background:var(--soft);border-color:color-mix(in srgb,var(--c) 55%,var(--line))}
+.chip[aria-pressed="true"] .dot{opacity:1}
+.chip.me{font-weight:700}
+.chip:focus-visible,.seg button:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.chartbox{position:relative;height:clamp(280px,46vh,460px)}
+.grid2{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:16px;align-items:start}
+@media (max-width:900px){.grid2{grid-template-columns:minmax(0,1fr)}}
+.tbl{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:.82rem}
+th{font-weight:600;color:var(--muted);text-align:right;padding:6px 8px;border-bottom:1px solid var(--line);font-size:.72rem;text-transform:uppercase;letter-spacing:.05em;white-space:nowrap}
+td{padding:7px 8px;border-bottom:1px solid var(--line);text-align:right;font-family:var(--f-num);font-variant-numeric:tabular-nums;white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+td.tk{font-family:var(--f-body);font-weight:700}
+tr:last-child td{border-bottom:0}
+.stats td .sw{display:inline-block;width:10px;height:3px;border-radius:2px;margin-right:8px;vertical-align:middle}
+form.entry{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px;align-items:end;margin-block:10px 4px}
+@media (max-width:620px){form.entry{grid-template-columns:repeat(2,minmax(0,1fr))}}
+label{display:grid;gap:3px;font-size:.72rem;color:var(--muted);font-weight:600}
+input,select,textarea{font:500 .85rem var(--f-body);color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:6px 8px;width:100%;min-width:0}
+input.num{font-family:var(--f-num)}
+textarea{font-family:var(--f-num);font-size:.78rem;min-height:90px;resize:vertical}
+.btn{font:600 .82rem var(--f-body);border-radius:6px;padding:7px 12px;border:1px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn.ghost{background:transparent}
+.btn.sm{padding:3px 8px;font-size:.72rem}
+.side-b{color:var(--up);font-family:var(--f-body);font-weight:700}
+.side-s{color:var(--down);font-family:var(--f-body);font-weight:700}
+.x{background:none;border:0;color:var(--muted);cursor:pointer;font-size:1rem;line-height:1;padding:2px 6px;border-radius:4px}
+.x:hover{color:var(--down);background:var(--soft)}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.note{font-size:.75rem;color:var(--muted);margin:0}
+.banner{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;padding:10px 14px;border-radius:10px;border:1px dashed color-mix(in srgb,var(--ref) 60%,var(--line));background:color-mix(in srgb,var(--ref) 8%,var(--panel));font-size:.82rem}
+details summary{cursor:pointer;font-weight:600;font-size:.82rem;color:var(--muted)}
+.ovr{width:84px;padding:2px 6px;font-size:.78rem}
+.err{color:var(--down);font-size:.78rem;min-height:1.2em;margin:0}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Sổ Lãi Lỗ Danh Mục<small>Hiệu suất danh mục so với VN-Index, VN30 và các quỹ lớn</small></h1>
+    <div class="status">
+      <span class="pill" id="asof"></span>
+      <span class="pill" id="saveState">Đang mở…</span>
+    </div>
+  </header>
+
+  <div class="banner" id="sampleBanner" hidden>
+    <span>Đang hiển thị <b>lệnh ví dụ</b> để bạn xem cách hoạt động. Thêm lệnh thật của bạn hoặc xóa ví dụ.</span>
+    <button class="btn sm" id="clearSample" type="button">Xóa lệnh ví dụ</button>
+  </div>
+
+  <section class="kpis" id="kpis" aria-label="Tổng quan"></section>
+
+  <section class="panel">
+    <div class="chart-head">
+      <h2>Hiệu suất tích lũy (%)</h2>
+      <div class="seg" id="ranges" role="group" aria-label="Khoảng thời gian">
+        <button type="button" data-r="1M">1T</button><button type="button" data-r="3M">3T</button><button type="button" data-r="6M">6T</button><button type="button" data-r="YTD">YTD</button><button type="button" data-r="1Y">1N</button><button type="button" data-r="ALL" aria-pressed="true">Từ lệnh đầu</button>
+      </div>
+    </div>
+    <div class="chips" id="chips"></div>
+    <div class="chartbox"><canvas id="chart" aria-label="Biểu đồ đường hiệu suất"></canvas></div>
+    <p class="note" style="margin-top:8px">Danh mục tính theo phương pháp TWR (loại trừ ảnh hưởng của nạp tiền), mọi đường được quy về 0% tại ngày đầu khoảng thời gian. Chỉ số theo điểm đóng cửa, quỹ mở theo NAV/CCQ.</p>
+    <div class="tbl" style="margin-top:12px">
+      <table class="stats"><thead><tr><th>Đường đang bật</th><th>Lợi nhuận</th><th>Chênh vs danh mục</th><th>Sụt giảm tối đa</th><th>Biến động/năm</th></tr></thead><tbody id="statsBody"></tbody></table>
+    </div>
+  </section>
+
+  <div class="grid2">
+    <section class="panel">
+      <div class="row" style="justify-content:space-between"><h2>Danh mục đang nắm</h2><span class="note">Giá: nghìn đồng · giá vốn bình quân gia quyền</span></div>
+      <div class="tbl" style="margin-top:8px">
+        <table><thead><tr><th>Mã</th><th>KL</th><th>Giá vốn</th><th>Giá TT</th><th>Giá trị</th><th>Lãi/lỗ</th><th>%</th></tr></thead><tbody id="holdBody"></tbody></table>
+      </div>
+      <p class="note" id="holdNote" style="margin-top:8px"></p>
+    </section>
+
+    <section class="panel">
+      <h2>Thêm lệnh</h2>
+      <form class="entry" id="entry" autocomplete="off">
+        <label style="grid-column:span 2">Ngày<input type="date" id="fDate" required></label>
+        <label>Mã<input id="fTicker" list="tickers" required placeholder="FPT" style="text-transform:uppercase"></label>
+        <label>Lệnh<select id="fSide"><option value="B">Mua</option><option value="S">Bán</option></select></label>
+        <label>KL<input id="fQty" class="num" type="number" min="1" step="1" required placeholder="1000"></label>
+        <label>Giá<input id="fPrice" class="num" type="number" min="0" step="0.01" placeholder="tự lấy"></label>
+        <button class="btn primary" type="submit" style="grid-column:1/-1">Ghi lệnh</button>
+      </form>
+      <p class="err" id="fErr"></p>
+      <datalist id="tickers"></datalist>
+
+      <div class="row" style="justify-content:space-between;margin-top:6px"><h2>Sổ lệnh</h2><span class="note" id="tradeCount"></span></div>
+      <div class="tbl" style="margin-top:6px;max-height:340px;overflow-y:auto">
+        <table><thead><tr><th>Ngày</th><th>Mã</th><th>Lệnh</th><th>KL</th><th>Giá</th><th></th></tr></thead><tbody id="tradeBody"></tbody></table>
+      </div>
+
+      <details style="margin-top:12px">
+        <summary>Phí, thuế và nhập/xuất hàng loạt</summary>
+        <div style="display:grid;gap:10px;margin-top:10px">
+          <div class="row">
+            <label style="flex:1">Phí giao dịch (%)<input id="fFee" class="num" type="number" step="0.01" min="0"></label>
+            <label style="flex:1">Thuế bán (%)<input id="fTax" class="num" type="number" step="0.01" min="0"></label>
+          </div>
+          <label>Dán CSV: ngày,mã,mua/bán,khối lượng,giá (nghìn đồng)
+            <textarea id="csv" placeholder="2025-03-10,FPT,mua,500,128.5&#10;2025-06-02,FPT,ban,200,135"></textarea></label>
+          <div class="row">
+            <button class="btn" type="button" id="importCsv">Thêm từ CSV</button>
+            <button class="btn ghost" type="button" id="exportCsv">Xuất sổ lệnh ra ô trên</button>
+            <button class="btn ghost" type="button" id="copyCsv">Sao chép</button>
+          </div>
+          <p class="err" id="csvMsg"></p>
+        </div>
+      </details>
+    </section>
+  </div>
+
+  <p class="note">Giá lấy trực tiếp từ VNDirect (cổ phiếu, chỉ số, ETF; đã điều chỉnh chia tách/cổ tức) và Fmarket (NAV quỹ), tự cập nhật mỗi phút trong giờ giao dịch; dữ liệu mới nhất ngày <span id="asof2"></span>. Mã nào không lấy được giá sẽ dùng giá bạn nhập ở cột Giá TT hoặc giá lệnh gần nhất. Đây là công cụ theo dõi, không phải khuyến nghị đầu tư.</p>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+// ---------- market data: baseline data.json + live pulls from VNDirect / Fmarket ----------
+const RAW = {};            // sym -> {g, m: Map(date -> close)}
+let D = [], N = 0, BENCH = {}, STOCK = {}, KNOWN = [];
+const FUND_IDS = {DCDS:28, DCDE:25, VESAF:23, VEOF:20, SSISCA:11, "VCBF-BCF":32, MAGEF:35};
+const DATA_START = "2023-01-01";
+const asOf = () => D[N-1];
+function ingestCompact(c){
+  for (const g of ["index","etf","fund","stock"]) for (const [sym, arr] of Object.entries(c[g]||{})){
+    const r = RAW[sym] || (RAW[sym] = {g, m:new Map()});
+    arr.forEach((v,i) => { if (v!=null) r.m.set(c.dates[i], v); });
+  }
+}
+// forward-filled close series over the trading-day axis
+function ffMap(m){ const o = new Array(N); let last = null; for (let i=0;i<N;i++){ const v = m.get(D[i]); if (v!=null) last = v; o[i] = last; } return o; }
+function rebuild(){
+  D = [...RAW.VNINDEX.m.keys()].filter(d => d >= DATA_START).sort(); N = D.length;
+  BENCH = {}; STOCK = {};
+  for (const [sym, r] of Object.entries(RAW)) (r.g==="stock" ? STOCK : BENCH)[sym] = ffMap(r.m);
+  KNOWN = Object.keys(STOCK).sort();
+  document.getElementById("tickers").innerHTML = KNOWN.map(t=>`<option value="${t}">`).join("");
+  document.getElementById("asof2").textContent = fmtDate(asOf());
+  const fd = document.getElementById("fDate"); fd.max = asOf(); fd.min = D[0];
+}
+const vnDate = ts => new Date((ts + 7*3600)*1000).toISOString().slice(0,10);
+async function fetchVnd(sym, g){
+  const r = RAW[sym]; const last = r && r.m.size ? [...r.m.keys()].sort().pop() : DATA_START;
+  const from = Math.floor(new Date(last+"T00:00:00+07:00").getTime()/1000) - 5*86400, to = Math.floor(Date.now()/1000) + 86400;
+  const res = await fetch(`https://dchart-api.vndirect.com.vn/dchart/history?resolution=D&symbol=${encodeURIComponent(sym)}&from=${from}&to=${to}`);
+  const j = await res.json(); if (j.s !== "ok" || !j.t || !j.t.length) return false;
+  const tgt = RAW[sym] || (RAW[sym] = {g, m:new Map()});
+  j.t.forEach((t,i) => { const d = vnDate(t); if (d >= DATA_START && j.c[i]!=null) tgt.m.set(d, Math.round(j.c[i]*100)/100); });
+  return true;
+}
+async function fetchFund(sym){
+  const today = new Date(Date.now()+7*3600e3).toISOString().slice(0,10).replaceAll("-","");
+  const res = await fetch("https://api.fmarket.vn/res/product/get-nav-history", {method:"POST", headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({isAllData:1, productId:FUND_IDS[sym], fromDate:null, toDate:today})});
+  const j = await res.json(); const tgt = RAW[sym] || (RAW[sym] = {g:"fund", m:new Map()});
+  (j.data||[]).forEach(r => { const d = String(r.navDate).slice(0,10); if (d >= DATA_START) tgt.m.set(d, Math.round(r.nav*100)/100); });
+  return true;
+}
+async function pool(tasks, n=6){ let i=0, ok=0, fail=0; await Promise.all(Array.from({length:n}, async () => { while (i < tasks.length){ const t = tasks[i++]; try { (await t()) ? ok++ : fail++; } catch(e){ fail++; } } })); return {ok, fail}; }
+let lastLive = null, liveBusy = false, fundsDone = false;
+function setAsOf(msg, warn){ const el = document.getElementById("asof"); el.textContent = msg; el.classList.toggle("warn", !!warn); }
+async function liveUpdate(extra=[]){
+  if (liveBusy) return; liveBusy = true; setAsOf("Đang lấy giá mới…");
+  const held = new Set(state.trades.map(t => t.t)); extra.forEach(t => held.add(t));
+  const tasks = [];
+  for (const s of SERIES) if (s.g !== "fund") tasks.push(() => fetchVnd(s.k, s.g));
+  for (const t of held) tasks.push(() => fetchVnd(t, "stock"));
+  if (!fundsDone) for (const s of SERIES) if (s.g === "fund") tasks.push(() => fetchFund(s.k).then(v => (fundsDone = true, v)));
+  const r = await pool(tasks);
+  liveBusy = false;
+  rebuild(); render();
+  const hh = new Date().toLocaleTimeString("vi-VN", {hour:"2-digit", minute:"2-digit"});
+  if (r.ok) { lastLive = Date.now(); setAsOf(`Giá đến ${fmtDate(asOf())} · cập nhật ${hh}` + (r.fail ? ` · ${r.fail} mã lỗi` : "")); }
+  else setAsOf(`Không lấy được giá mới · dữ liệu đến ${fmtDate(asOf())}`, true);
+}
+function inSession(){ const v = new Date(Date.now()+7*3600e3); const dow = v.getUTCDay(), m = v.getUTCHours()*60 + v.getUTCMinutes(); return dow>=1 && dow<=5 && m>=9*60 && m<=15*60+5; }
+setInterval(() => { if (document.visibilityState==="visible" && inSession()) liveUpdate(); }, 60000);
+document.addEventListener("visibilitychange", () => { if (document.visibilityState==="visible" && lastLive && Date.now()-lastLive > 5*60000) liveUpdate(); });
+
+const SERIES = [
+  {k:"VNINDEX", g:"index", label:"VN-Index", c:"#e8590c", on:true},
+  {k:"VN30", g:"index", label:"VN30", c:"#7048e8", on:true},
+  {k:"VN100", g:"index", label:"VN100", c:"#868e96"},
+  {k:"HNX", g:"index", label:"HNX-Index", c:"#a07a3c"},
+  {k:"DCDS", g:"fund", label:"DCDS · Dragon Capital", c:"#0ca678", on:true},
+  {k:"DCDE", g:"fund", label:"DCDE · Dragon Capital", c:"#66a80f"},
+  {k:"VESAF", g:"fund", label:"VESAF · VinaCapital", c:"#d6336c", on:true},
+  {k:"VEOF", g:"fund", label:"VEOF · VinaCapital", c:"#c2255c"},
+  {k:"SSISCA", g:"fund", label:"SSISCA · SSIAM", c:"#1098ad"},
+  {k:"VCBF-BCF", g:"fund", label:"VCBF-BCF · VCBF", c:"#2f9e44"},
+  {k:"MAGEF", g:"fund", label:"MAGEF · Mirae", c:"#f08c00"},
+  {k:"E1VFVN30", g:"etf", label:"E1VFVN30", c:"#5c7cfa"},
+  {k:"FUEVFVND", g:"etf", label:"FUEVFVND", c:"#ae3ec9"},
+  {k:"FUESSVFL", g:"etf", label:"FUESSVFL", c:"#15aabf"},
+  {k:"FUEVN100", g:"etf", label:"FUEVN100", c:"#94d82d"},
+];
+const GROUPS = {index:"Chỉ số", fund:"Quỹ mở", etf:"ETF"};
+
+function fmtDate(s){ const [y,m,d]=s.split("-"); return `${d}/${m}/${y}`; }
+const nf0 = new Intl.NumberFormat("vi-VN",{maximumFractionDigits:0});
+const nf2 = new Intl.NumberFormat("vi-VN",{minimumFractionDigits:2,maximumFractionDigits:2});
+const pct = (x,sign=true) => x==null||!isFinite(x) ? "—" : (sign&&x>0?"+":"") + nf2.format(x*100) + "%";
+const cls = x => x==null||Math.abs(x)<1e-9 ? "flat" : x>0 ? "up" : "down";
+function money(v){ const a=Math.abs(v), s=v<0?"−":""; if (a>=1e9) return s+nf2.format(a/1e9)+" tỷ"; if (a>=1e6) return s+nf2.format(a/1e6)+" tr"; return s+nf0.format(a)+" đ"; }
+// first trading-day index >= date
+function dayIdx(date){ let lo=0, hi=N; while(lo<hi){ const m=(lo+hi)>>1; if (D[m]<date) lo=m+1; else hi=m; } return lo; }
+
+// ---------- state ----------
+let state = {trades:[], fee:0.15, tax:0.1, overrides:{}, sample:false};
+let enabled = new Set(["PORT", ...SERIES.filter(s=>s.on).map(s=>s.k)]);
+let range = "ALL";
+const LS_KEY = "slldm-state-v1", LS_UI = "slldm-ui-v1";
+
+function sampleTrades(){
+  const mk = (date, t, side, q) => { const i = Math.min(dayIdx(date), N-1); return {id:crypto.randomUUID?crypto.randomUUID():String(Math.random()), date:D[i], t, side, q, p:STOCK[t][i]}; };
+  const base = D[Math.max(0, N-1-250)].slice(0,7)+"-05";
+  const add = (d0, months) => { const d=new Date(d0); d.setMonth(d.getMonth()+months); return d.toISOString().slice(0,10); };
+  return [
+    mk(base,"FPT","B",1000), mk(base,"HPG","B",3000), mk(add(base,1),"MBB","B",4000),
+    mk(add(base,3),"MWG","B",1500), mk(add(base,5),"HPG","S",1500), mk(add(base,6),"VCB","B",1000),
+    mk(add(base,8),"FPT","S",400), mk(add(base,9),"SSI","B",3000),
+  ].filter(t => t.p != null && t.date <= asOf());
+}
+
+// ---------- persistence: private db doc, localStorage fallback ----------
+let docRef = null, saveTimer = null;
+function setSave(t, warn){ const el=document.getElementById("saveState"); el.textContent=t; el.classList.toggle("warn",!!warn); }
+function loadLocal(){ try { const s = JSON.parse(localStorage.getItem(LS_KEY)||"null"); if (s && Array.isArray(s.trades)) return s; } catch(e){} return null; }
+function saveLocal(){ try { localStorage.setItem(LS_KEY, JSON.stringify(state)); } catch(e){} }
+function persist(){
+  saveLocal();
+  if (!docRef){ setSave("Lưu trên trình duyệt này", true); return; }
+  clearTimeout(saveTimer); setSave("Đang lưu…");
+  saveTimer = setTimeout(async () => {
+    try { await docRef.set(JSON.parse(JSON.stringify(state))); setSave("Đã lưu vào tài khoản"); }
+    catch(e){ setSave("Chưa lưu được lên tài khoản, đã giữ trên trình duyệt", true); }
+  }, 600);
+}
+async function initStore(){
+  try {
+    const [db, user] = await Promise.all([window.claude?.use?.("db"), window.claude?.use?.("user")]);
+    const id = user ? await user.id() : null;
+    if (db && id){
+      docRef = db.doc("data/users/" + id + "/portfolio");
+      const snap = await docRef.get();
+      if (snap.exists){ const d = snap.data(); if (d && Array.isArray(d.trades)){ state = {...state, ...structuredClone(d)}; render(); } setSave("Đã lưu vào tài khoản"); }
+      else if (!state.sample){ await docRef.set(JSON.parse(JSON.stringify(state))); setSave("Đã lưu vào tài khoản"); }
+      else setSave("Ví dụ · lệnh thật sẽ lưu vào tài khoản");
+      return;
+    }
+  } catch(e){}
+  setSave(state.sample ? "Ví dụ · lưu trên trình duyệt" : "Lưu trên trình duyệt này", true);
+}
+
+// ---------- engine ----------
+function priceAt(t, i, lastTrade){
+  const s = STOCK[t]; if (s && s[i]!=null) return s[i];
+  return lastTrade;
+}
+function compute(){
+  const trades = [...state.trades].sort((a,b)=> a.date<b.date?-1:a.date>b.date?1:0);
+  const fee = state.fee/100, tax = state.tax/100;
+  if (!trades.length) return null;
+  const start = Math.min(dayIdx(trades[0].date), N-1);
+  const byDay = new Map(); trades.forEach(t => { const i=Math.min(dayIdx(t.date),N-1); (byDay.get(i)||byDay.set(i,[]).get(i)).push(t); });
+  const pos = {}; let cash=0, invested=0, realized=0, feesPaid=0, prevV=0, idx=1;
+  const twr = new Array(N).fill(null), value = new Array(N).fill(null);
+  const warnings = [];
+  for (let i=start;i<N;i++){
+    let inflow = 0;
+    for (const t of byDay.get(i)||[]){
+      const p = pos[t.t] || (pos[t.t] = {q:0, cost:0, realized:0, last:t.p});
+      p.last = t.p;
+      const gross = t.q * t.p * 1000;
+      if (t.side==="B"){
+        const f = gross*fee; feesPaid += f;
+        cash -= gross + f; if (cash<0){ inflow += -cash; cash = 0; }
+        p.cost += gross + f; p.q += t.q;
+      } else {
+        const q = Math.min(t.q, p.q); if (q < t.q) warnings.push(`${fmtDate(t.date)}: bán ${t.t} vượt số đang có`);
+        if (q<=0) continue;
+        const g = q*t.p*1000, f = g*(fee+tax); feesPaid += f;
+        const avg = p.cost/p.q, r = g - f - avg*q;
+        realized += r; p.realized += r; p.cost -= avg*q; p.q -= q; cash += g - f;
+      }
+    }
+    invested += inflow;
+    let mv = 0; for (const [t,p] of Object.entries(pos)) if (p.q>0) mv += p.q * priceAt(t,i,p.last) * 1000;
+    const V = cash + mv, den = prevV + inflow;
+    if (den > 0) idx *= V/den;
+    twr[i] = idx - 1; value[i] = V; prevV = V;
+  }
+  // today's marks with manual overrides
+  const L = N-1; let mvNow = 0; const rows = [];
+  for (const [t,p] of Object.entries(pos)){
+    if (p.q<=0) continue;
+    const ov = state.overrides[t]; const hasData = !!STOCK[t];
+    const px = ov!=null && ov>0 ? ov : priceAt(t,L,p.last);
+    const val = p.q*px*1000, avg = p.cost/p.q/1000;
+    mvNow += val;
+    rows.push({t, q:p.q, avg, px, val, pl: val - p.cost, plp: val/p.cost - 1, src: ov?"tự nhập": hasData?"dữ liệu":"giá lệnh cuối"});
+  }
+  rows.sort((a,b)=>b.val-a.val);
+  // if overrides change today's value, adjust last TWR point proportionally
+  const mvData = Object.entries(pos).reduce((s,[t,p])=> s + (p.q>0 ? p.q*priceAt(t,L,p.last)*1000 : 0), 0);
+  const Vnow = cash + mvNow;
+  if (value[L] && Math.abs(Vnow - value[L])>1){ twr[L] = (1+twr[L]) * Vnow/value[L] - 1; value[L] = Vnow; }
+  const unreal = rows.reduce((s,r)=>s+r.pl,0);
+  return {start, twr, value, rows, cash, invested, realized, unreal, feesPaid, Vnow, warnings, mvData};
+}
+
+// ---------- range helpers ----------
+function rangeStart(portStart){
+  const last = D[N-1]; const d = new Date(last);
+  const back = {"1M":1,"3M":3,"6M":6,"1Y":12}[range];
+  let s;
+  if (range==="ALL") s = portStart ?? Math.max(0,N-250);
+  else if (range==="YTD") s = dayIdx(last.slice(0,4)+"-01-01");
+  else { d.setMonth(d.getMonth()-back); s = dayIdx(d.toISOString().slice(0,10)); }
+  if (portStart!=null && range!=="ALL") s = Math.max(s, portStart) === portStart && s < portStart ? portStart : s;
+  return Math.min(Math.max(0,s), N-2);
+}
+function rebase(arr, s){ const b = arr[s]; return arr.slice(s).map(v => v==null||b==null? null : v/b - 1); }
+function seriesStats(r){
+  const vals = r.filter(v=>v!=null); if (vals.length<2) return {ret:null, mdd:null, vol:null};
+  let peak=-Infinity, mdd=0; const rets=[];
+  for (let i=0;i<vals.length;i++){ const w=1+vals[i]; if (w>peak) peak=w; mdd=Math.min(mdd, w/peak-1); if(i) rets.push(w/(1+vals[i-1])-1); }
+  const m = rets.reduce((a,b)=>a+b,0)/rets.length, sd = Math.sqrt(rets.reduce((a,b)=>a+(b-m)**2,0)/Math.max(1,rets.length-1));
+  return {ret: vals[vals.length-1], mdd, vol: sd*Math.sqrt(250)};
+}
+
+// ---------- render ----------
+let chart = null;
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+function render(){
+  const R = compute();
+  document.getElementById("sampleBanner").hidden = !state.sample;
+  const s = rangeStart(R ? R.start : null);
+  const labels = D.slice(s);
+  // portfolio within range, rebased
+  let port = null;
+  if (R){ const base = R.twr[s]; port = R.twr.slice(s).map((v,j)=> v==null? null : (s+j===R.start && base==null ? 0 : (1+v)/(1+(base??0)) - 1)); if (R.start>s) port = port.map((v,j)=> s+j<R.start? null : v); }
+  const datasets = [];
+  const statRows = [];
+  if (port && enabled.has("PORT")){
+    datasets.push({label:"Danh mục của bạn", data:port.map(v=>v==null?null:v*100), borderColor:css("--accent"), borderWidth:3, order:0});
+  }
+  const pStats = port ? seriesStats(port) : null;
+  if (port && enabled.has("PORT")) statRows.push({label:"Danh mục của bạn", c:css("--accent"), st:pStats, me:true});
+  SERIES.forEach(se => {
+    if (!enabled.has(se.k) || !BENCH[se.k]) return;
+    const startAt = R && R.start>s ? R.start : s;
+    const r = rebase(BENCH[se.k], startAt); const full = new Array(startAt-s).fill(null).concat(r);
+    datasets.push({label:se.label, data:full.map(v=>v==null?null:v*100), borderColor:se.c, borderWidth:1.6, order:1});
+    statRows.push({label:se.label, c:se.c, st:seriesStats(r)});
+  });
+  datasets.forEach(d => Object.assign(d,{pointRadius:0, pointHoverRadius:3, tension:0, spanGaps:true, fill:false}));
+  drawChart(labels, datasets);
+
+  // stats table
+  document.getElementById("statsBody").innerHTML = statRows.map(r => {
+    const diff = pStats && pStats.ret!=null && !r.me && r.st.ret!=null ? pStats.ret - r.st.ret : null;
+    return `<tr><td class="tk" style="font-weight:${r.me?700:500}"><span class="sw" style="background:${r.c}"></span>${r.label}</td>
+      <td class="${cls(r.st.ret)}">${pct(r.st.ret)}</td>
+      <td class="${diff==null?'':cls(diff)}">${r.me?"—":diff==null?"—":(diff>0?"Bạn hơn ":"Bạn kém ")+nf2.format(Math.abs(diff*100))+" đ%"}</td>
+      <td class="down">${pct(r.st.mdd)}</td><td>${r.st.vol==null?"—":nf2.format(r.st.vol*100)+"%"}</td></tr>`;
+  }).join("") || `<tr><td colspan="5" style="text-align:left;font-family:var(--f-body);color:var(--muted)">Bật ít nhất một đường ở trên để xem thống kê.</td></tr>`;
+
+  // KPIs
+  const k = document.getElementById("kpis");
+  if (!R){ k.innerHTML = `<div class="kpi"><span class="eyebrow">Chưa có lệnh</span><span class="s">Ghi lệnh mua đầu tiên ở khung “Thêm lệnh” để bắt đầu.</span></div>`; }
+  else {
+    const total = R.Vnow - R.invested;
+    const vnRet = (BENCH.VNINDEX[N-1]/BENCH.VNINDEX[R.start]) - 1;
+    const tw = R.twr[N-1];
+    k.innerHTML = [
+      ["Giá trị danh mục", money(R.Vnow), `Cổ phiếu ${money(R.Vnow-R.cash)} · tiền ${money(R.cash)}`],
+      ["Vốn đã bỏ vào", money(R.invested), `Từ ${fmtDate(D[R.start])}`],
+      ["Tổng lãi/lỗ", `<span class="${cls(total)}">${total>0?"+":""}${money(total)}</span>`, `Đã chốt ${money(R.realized)} · chưa chốt ${money(R.unreal)}`],
+      ["Hiệu suất (TWR)", `<span class="${cls(tw)}">${pct(tw)}</span>`, `Phí + thuế đã trả ${money(R.feesPaid)}`],
+      ["So với VN-Index", `<span class="${cls(tw-vnRet)}">${tw-vnRet>0?"+":""}${nf2.format((tw-vnRet)*100)} đ%</span>`, `VN-Index cùng kỳ ${pct(vnRet)}`],
+    ].map(([a,b,c])=>`<div class="kpi"><span class="eyebrow">${a}</span><span class="v">${b}</span><span class="s">${c}</span></div>`).join("");
+  }
+
+  // holdings
+  const hb = document.getElementById("holdBody");
+  hb.innerHTML = R && R.rows.length ? R.rows.map(r => `<tr><td class="tk">${r.t}</td><td>${nf0.format(r.q)}</td><td>${nf2.format(r.avg)}</td>
+    <td><input class="ovr num" type="number" step="0.05" min="0" id="ovr-${r.t}" data-t="${r.t}" value="${r.px}" title="Giá ${r.src}; sửa để định giá theo giá bạn muốn"></td>
+    <td>${money(r.val)}</td><td class="${cls(r.pl)}">${r.pl>0?"+":""}${money(r.pl)}</td><td class="${cls(r.plp)}">${pct(r.plp)}</td></tr>`).join("")
+    : `<tr><td colspan="7" style="text-align:left;font-family:var(--f-body);color:var(--muted)">Chưa nắm giữ mã nào.</td></tr>`;
+  const notes = [];
+  if (R){ const miss = R.rows.filter(r=>r.src==="giá lệnh cuối").map(r=>r.t); if (miss.length) notes.push(`${miss.join(", ")} chưa có dữ liệu giá: đang định giá theo giá lệnh cuối, hãy nhập giá thị trường ở cột Giá TT.`);
+    if (Object.keys(state.overrides).length) notes.push(`Có mã đang dùng giá tự nhập. <button class="btn sm ghost" type="button" id="resetOvr">Dùng lại giá dữ liệu</button>`);
+    notes.push(...R.warnings); }
+  document.getElementById("holdNote").innerHTML = notes.join("<br>");
+
+  // trades
+  const tr = [...state.trades].sort((a,b)=> a.date<b.date?1:a.date>b.date?-1:0);
+  document.getElementById("tradeCount").textContent = tr.length ? `${tr.length} lệnh${state.sample?" (ví dụ)":""}` : "";
+  document.getElementById("tradeBody").innerHTML = tr.length ? tr.map(t=>`<tr><td>${fmtDate(t.date)}</td><td class="tk">${t.t}</td>
+    <td class="${t.side==="B"?"side-b":"side-s"}">${t.side==="B"?"Mua":"Bán"}</td><td>${nf0.format(t.q)}</td><td>${nf2.format(t.p)}</td>
+    <td><button class="x" type="button" data-del="${t.id}" aria-label="Xóa lệnh ${t.t} ${fmtDate(t.date)}">×</button></td></tr>`).join("")
+    : `<tr><td colspan="6" style="text-align:left;font-family:var(--f-body);color:var(--muted)">Sổ lệnh trống.</td></tr>`;
+  document.getElementById("fFee").value = state.fee; document.getElementById("fTax").value = state.tax;
+}
+
+function drawChart(labels, datasets){
+  const ink = css("--muted"), grid = css("--grid");
+  const cfg = {type:"line", data:{labels:labels.map(fmtDate), datasets},
+    options:{responsive:true, maintainAspectRatio:false, animation:false, interaction:{mode:"index", intersect:false},
+      plugins:{legend:{display:false}, tooltip:{itemSort:(a,b)=>b.parsed.y-a.parsed.y, callbacks:{label:c=>` ${c.dataset.label}: ${c.parsed.y>0?"+":""}${nf2.format(c.parsed.y)}%`}}},
+      scales:{x:{ticks:{color:ink, maxTicksLimit:8, maxRotation:0, font:{family:"JetBrains Mono", size:10}}, grid:{display:false}, border:{color:grid}},
+        y:{ticks:{color:ink, callback:v=>(v>0?"+":"")+v+"%", font:{family:"JetBrains Mono", size:10}}, grid:{color:c=> c.tick.value===0 ? css("--muted") : grid}, border:{display:false}}}}};
+  if (!window.Chart){ return; }
+  if (chart){ chart.data = cfg.data; chart.options = cfg.options; chart.update("none"); }
+  else chart = new Chart(document.getElementById("chart"), cfg);
+}
+
+function buildChips(){
+  const box = document.getElementById("chips");
+  const chip = (k,label,c,me) => `<button type="button" class="chip${me?" me":""}" data-k="${k}" style="--c:${c}" aria-pressed="${enabled.has(k)}"><span class="dot"></span>${label}</button>`;
+  let html = `<div class="chipgroup"><span class="eyebrow">Của bạn</span>${chip("PORT","Danh mục",css("--accent"),true)}</div>`;
+  for (const [g,name] of Object.entries(GROUPS)){
+    const items = SERIES.filter(s=>s.g===g && BENCH[s.k]); if (!items.length) continue;
+    html += `<div class="chipgroup"><span class="eyebrow">${name}</span>${items.map(s=>chip(s.k,s.label,s.c)).join("")}</div>`;
+  }
+  box.innerHTML = html;
+}
+
+// ---------- events ----------
+function saveUI(){ try{ localStorage.setItem(LS_UI, JSON.stringify({enabled:[...enabled], range})); }catch(e){} }
+document.getElementById("chips").addEventListener("click", e => {
+  const b = e.target.closest(".chip"); if (!b) return;
+  const k = b.dataset.k; enabled.has(k) ? enabled.delete(k) : enabled.add(k);
+  b.setAttribute("aria-pressed", enabled.has(k)); saveUI(); render();
+});
+document.getElementById("ranges").addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b) return; range = b.dataset.r;
+  document.querySelectorAll("#ranges button").forEach(x=>x.setAttribute("aria-pressed", x===b)); saveUI(); render();
+});
+function dropSample(){ if (state.sample){ state.trades = []; state.overrides = {}; state.sample = false; } }
+document.getElementById("clearSample").addEventListener("click", () => { dropSample(); persist(); render(); });
+const fDate = document.getElementById("fDate");
+// pull a ticker's history on demand (new code or stale data)
+const tried = new Set();
+async function ensureTicker(t){
+  if (!/^[A-Z0-9]{3,10}$/.test(t) || tried.has(t)) return; tried.add(t);
+  try { if (await fetchVnd(t, "stock")) rebuild(); } catch(e){}
+}
+let apTimer = null;
+function autoPrice(){
+  const t = document.getElementById("fTicker").value.trim().toUpperCase(); const fp = document.getElementById("fPrice");
+  const show = () => { const i = Math.min(dayIdx(fDate.value),N-1); fp.placeholder = STOCK[t] && STOCK[t][i]!=null ? String(STOCK[t][i]) : "nhập giá"; };
+  show(); clearTimeout(apTimer);
+  if (t.length >= 3) apTimer = setTimeout(async () => { fp.placeholder = "đang lấy…"; await ensureTicker(t); show(); }, 400);
+}
+document.getElementById("fTicker").addEventListener("input", autoPrice); fDate.addEventListener("change", autoPrice);
+document.getElementById("entry").addEventListener("submit", async e => {
+  e.preventDefault();
+  const err = document.getElementById("fErr"); err.textContent = "";
+  await ensureTicker(document.getElementById("fTicker").value.trim().toUpperCase());
+  const r = addTrade(fDate.value, document.getElementById("fTicker").value, document.getElementById("fSide").value, document.getElementById("fQty").value, document.getElementById("fPrice").value);
+  if (r) { err.textContent = r; return; }
+  document.getElementById("fQty").value = ""; document.getElementById("fPrice").value = ""; persist(); render();
+});
+function addTrade(date, t, side, q, p){
+  t = String(t||"").trim().toUpperCase(); q = Number(q); p = p===""||p==null ? NaN : Number(String(p).replace(",","."));
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date||"")) return "Ngày chưa đúng định dạng.";
+  if (date < D[0] || date > asOf()) return `Ngày cần nằm trong ${fmtDate(D[0])} – ${fmtDate(asOf())}.`;
+  if (!/^[A-Z0-9]{3,10}$/.test(t)) return "Mã cổ phiếu chưa hợp lệ.";
+  if (!(q>0)) return "Khối lượng phải lớn hơn 0.";
+  if (!(p>0)){ const i=Math.min(dayIdx(date),N-1); if (STOCK[t] && STOCK[t][i]!=null) p = STOCK[t][i]; else return `Chưa có dữ liệu giá ${t}, hãy nhập giá khớp (nghìn đồng).`; }
+  if (p > 5000) p = p/1000; // nhập theo đồng → đổi sang nghìn đồng
+  dropSample();
+  state.trades.push({id: crypto.randomUUID?crypto.randomUUID():String(Date.now()+Math.random()), date, t, side: side==="S"?"S":"B", q, p});
+  return null;
+}
+document.getElementById("tradeBody").addEventListener("click", e => {
+  const b = e.target.closest("[data-del]"); if (!b) return;
+  state.trades = state.trades.filter(t => t.id !== b.dataset.del); persist(); render();
+});
+document.getElementById("holdBody").addEventListener("change", e => {
+  const i = e.target.closest(".ovr"); if (!i) return; const v = Number(i.value);
+  if (v>0) state.overrides[i.dataset.t] = v; else delete state.overrides[i.dataset.t]; persist(); render();
+});
+document.getElementById("holdNote").addEventListener("click", e => { if (e.target.id==="resetOvr"){ state.overrides = {}; persist(); render(); } });
+["fFee","fTax"].forEach(id => document.getElementById(id).addEventListener("change", e => {
+  const v = Number(e.target.value); if (v>=0 && v<10){ state[id==="fFee"?"fee":"tax"] = v; persist(); render(); } }));
+document.getElementById("importCsv").addEventListener("click", async () => {
+  const msg = document.getElementById("csvMsg"); const lines = document.getElementById("csv").value.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
+  let ok=0; const bad=[];
+  const syms = [...new Set(lines.map(l => (l.split(/[,;\t]/)[1]||"").trim().toUpperCase()).filter(t => t && !STOCK[t]))];
+  if (syms.length){ msg.textContent = `Đang lấy giá ${syms.join(", ")}…`; await pool(syms.map(t => () => ensureTicker(t).then(()=>true))); }
+  lines.forEach((l,n) => {
+    const c = l.split(/[,;\t]/).map(x=>x.trim()); if (n===0 && /ng[aà]y|date/i.test(c[0])) return;
+    let d = c[0]; const m = d.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/); if (m) d = `${m[3]}-${m[2].padStart(2,"0")}-${m[1].padStart(2,"0")}`;
+    const side = /^(b[aá]n|s|sell)/i.test(c[2]||"") ? "S" : "B";
+    const r = addTrade(d, c[1], side, c[3], c[4]); r ? bad.push(`dòng ${n+1}: ${r}`) : ok++;
+  });
+  msg.style.color = bad.length ? "" : "var(--up)";
+  msg.textContent = `Đã thêm ${ok} lệnh.` + (bad.length ? " Bỏ qua " + bad.join(" ") : "");
+  if (ok){ persist(); render(); }
+});
+document.getElementById("exportCsv").addEventListener("click", () => {
+  document.getElementById("csv").value = "ngay,ma,lenh,khoi_luong,gia\n" + [...state.trades].sort((a,b)=>a.date<b.date?-1:1).map(t=>`${t.date},${t.t},${t.side==="B"?"mua":"ban"},${t.q},${t.p}`).join("\n");
+});
+document.getElementById("copyCsv").addEventListener("click", async () => {
+  const ta = document.getElementById("csv"), msg = document.getElementById("csvMsg");
+  try { await navigator.clipboard.writeText(ta.value); msg.style.color="var(--up)"; msg.textContent = "Đã sao chép."; }
+  catch(e){ ta.select(); msg.textContent = "Đã chọn nội dung, nhấn Ctrl+C để sao chép."; }
+});
+const mq = matchMedia("(prefers-color-scheme: dark)");
+const recolor = () => { if (!N) return; buildChips(); if (chart){ chart.destroy(); chart=null; } render(); };
+mq.addEventListener?.("change", recolor);
+new MutationObserver(recolor).observe(document.documentElement, {attributes:true, attributeFilter:["data-theme"]});
+
+// ---------- boot ----------
+try { const ui = JSON.parse(localStorage.getItem(LS_UI)||"null"); if (ui){ enabled = new Set(ui.enabled); range = ui.range||"ALL";
+  document.querySelectorAll("#ranges button").forEach(x=>x.setAttribute("aria-pressed", x.dataset.r===range)); } } catch(e){}
+async function boot(){
+  try { const res = await fetch("data.json", {cache:"no-cache"}); ingestCompact(await res.json()); }
+  catch(e){ setAsOf("Không tải được dữ liệu nền", true); }
+  if (!RAW.VNINDEX){ try { await fetchVnd("VNINDEX","index"); } catch(e){} }
+  if (!RAW.VNINDEX){ document.getElementById("kpis").innerHTML = `<div class="kpi"><span class="eyebrow">Chưa tải được dữ liệu</span><span class="s">Kiểm tra kết nối mạng rồi tải lại trang.</span></div>`; return; }
+  rebuild(); fDate.value = asOf();
+  setAsOf("Dữ liệu đến " + fmtDate(asOf()));
+  const local = loadLocal();
+  if (local) state = {...state, ...local};
+  else state = {...state, trades: sampleTrades(), sample:true};
+  buildChips(); render(); initStore();
+  liveUpdate();
+}
+boot();
+</script>
