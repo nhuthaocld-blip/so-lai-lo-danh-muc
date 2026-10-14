@@ -130,7 +130,7 @@ form.addhold{display:grid;grid-template-columns:repeat(4,minmax(0,1fr)) auto;gap
       <form class="addhold" id="addHold" autocomplete="off" hidden>
         <label>Mã<input id="hTicker" list="tickers" required placeholder="VD: HPG" style="text-transform:uppercase"></label>
         <label>Khối lượng<input id="hQty" class="num" type="number" min="1" step="1" required placeholder="1000"></label>
-        <label>Giá vốn<input id="hCost" class="num" type="number" min="0" step="0.01" placeholder="tự lấy"></label>
+        <label>Giá vốn<input id="hCost" class="num" type="number" min="0" step="any" placeholder="tự lấy"></label>
         <label>Ngày mua<input id="hDate" type="date" required></label>
         <div class="row" style="flex-wrap:nowrap"><button class="btn primary sm" type="submit">Thêm</button><button class="btn ghost sm" type="button" id="addHoldCancel">Hủy</button></div>
         <p class="err" id="hErr" style="grid-column:1/-1;margin:0"></p>
@@ -149,7 +149,7 @@ form.addhold{display:grid;grid-template-columns:repeat(4,minmax(0,1fr)) auto;gap
         <label>Mã<input id="fTicker" list="tickers" required placeholder="FPT" style="text-transform:uppercase"></label>
         <label>Lệnh<select id="fSide"><option value="B">Mua</option><option value="S">Bán</option></select></label>
         <label>KL<input id="fQty" class="num" type="number" min="1" step="1" required placeholder="1000"></label>
-        <label>Giá<input id="fPrice" class="num" type="number" min="0" step="0.01" placeholder="tự lấy"></label>
+        <label>Giá<input id="fPrice" class="num" type="number" min="0" step="any" placeholder="tự lấy"></label>
         <div class="row" style="grid-column:1/-1"><button class="btn primary" type="submit" id="fSubmit" style="flex:1">Ghi lệnh</button><button class="btn ghost" type="button" id="fCancel" hidden>Hủy sửa</button></div>
       </form>
       <p class="err" id="fErr"></p>
@@ -458,8 +458,8 @@ function render(){
   const keep = editingHold && document.getElementById("eQty") ? ["eQty","eCost","ePx"].map(id => document.getElementById(id).value).concat(document.getElementById("eErr").innerHTML) : null;
   hb.innerHTML = R && R.rows.length ? R.rows.map(r => editingHold===r.t ? `<tr class="editing"><td class="tk">${r.t}</td>
     <td><input class="ed num" id="eQty" type="number" min="1" step="1" value="${r.q}" aria-label="Khối lượng ${r.t}"></td>
-    <td><input class="ed num" id="eCost" type="number" min="0" step="0.01" value="${Math.round(r.avg*100)/100}" aria-label="Giá vốn ${r.t}"></td>
-    <td><input class="ed num" id="ePx" type="number" min="0" step="0.05" value="${state.overrides[r.t] ?? ""}" placeholder="${r.dataPx ?? "nhập giá"}" aria-label="Giá thị trường ${r.t}" title="Để trống để dùng giá tự động"></td>
+    <td><input class="ed num" id="eCost" type="number" min="0" step="any" value="${Math.round(r.avg*100)/100}" aria-label="Giá vốn ${r.t}"></td>
+    <td><input class="ed num" id="ePx" type="number" min="0" step="any" value="${state.overrides[r.t] ?? ""}" placeholder="${r.dataPx ?? "nhập giá"}" aria-label="Giá thị trường ${r.t}" title="Để trống để dùng giá tự động"></td>
     <td colspan="3" style="text-align:left"><button class="btn primary sm" type="button" data-save="${r.t}">Lưu</button> <button class="btn ghost sm" type="button" data-cancel="1">Hủy</button></td><td></td></tr>
     <tr class="editing"><td colspan="8" style="text-align:left;font-family:var(--f-body);white-space:normal"><p class="err" id="eErr" style="margin:0"></p><span class="note">Ô giá thị trường để trống = dùng giá tự động (${r.dataPx!=null ? nf2.format(r.dataPx) : "chưa có"}).</span></td></tr>`
     : `<tr><td class="tk">${r.t}</td><td>${nf0.format(r.q)}</td><td>${nf2.format(r.avg)}</td>
